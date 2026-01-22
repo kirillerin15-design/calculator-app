@@ -9,45 +9,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Загружаем код из репозитория
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 2. Настраиваем Node.js
+    # 1. Используем Node.js 20 (исправляет варнинги EBADENGINE)
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: 20
 
-    # 3. Настраиваем Java (критично для Android)
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: 17
 
-    # 4. Настраиваем Android SDK
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    # 5. Принимаем лицензии Android (чтобы сборка не встала)
     - name: Accept Android SDK licenses
       run: yes | sdkmanager --licenses
 
-    # 6. Устанавливаем NativeScript CLI
-    - name: Install NativeScript
+    - name: Install NativeScript CLI
       run: npm install -g nativescript
 
-    # 7. Устанавливаем зависимости и собираем APK
-    # ВНИМАНИЕ: используем npx ns, чтобы избежать ошибки 127
     - name: Build APK
       run: |
         cd calculator-app
         npm install
-        npx ns platform add android --copy-from ../
+        
+        # Исправляем ошибку "Package name undefined"
+        # Прописываем ID приложения вручную перед сборкой
+        npx ns config set id org.nativescript.calculator
+        
+        # Добавляем платформу и собираем
+        npx ns platform add android
         npx ns build android --release --no-hmr
 
-    # 8. Сохраняем готовый файл APK
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
