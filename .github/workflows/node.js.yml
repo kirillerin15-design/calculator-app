@@ -35,21 +35,27 @@ jobs:
     - name: Install NativeScript
       run: npm install -g nativescript
 
-    - name: Nuclear Fix and Build
+    - name: Total Project Reconstruction
       run: |
-        cd calculator-app
+        # 1. Находим, где реально лежит проект
+        PROJECT_DIR=$(find . -name "package.json" -exec dirname {} \; | head -n 1)
+        echo "Project found in: $PROJECT_DIR"
+        cd "$PROJECT_DIR"
         
-        # 1. Создаем правильный package.json
+        # 2. Создаем чистый package.json
         cat <<EOF > package.json
         {
           "name": "calculator-app",
           "main": "app.js",
-          "displayName": "Calculator",
           "version": "1.0.0",
           "private": true,
           "dependencies": {
-            "@nativescript/core": "~9.0.0",
-            "@nativescript/android": "~9.0.0"
+            "@nativescript/core": "~8.8.0",
+            "@nativescript/android": "~8.8.0"
+          },
+          "devDependencies": {
+            "@nativescript/webpack": "~5.0.0",
+            "webpack": "~5.0.0"
           },
           "nativescript": {
             "id": "org.nativescript.calculator"
@@ -57,7 +63,16 @@ jobs:
         }
         EOF
 
-        # 2. Создаем конфиг
+        # 3. Создаем Webpack Config (КРИТИЧЕСКИ ВАЖНО)
+        cat <<EOF > webpack.config.js
+        const webpack = require("@nativescript/webpack");
+        module.exports = (env) => {
+            webpack.init(env);
+            return webpack.resolveConfig();
+        };
+        EOF
+
+        # 4. Создаем NativeScript Config
         cat <<EOF > nativescript.config.js
         module.exports = {
           id: 'org.nativescript.calculator',
@@ -72,10 +87,8 @@ jobs:
 
         mkdir -p App_Resources/Android
 
-        # 3. Установка
+        # 5. Установка и сборка
         npm install
-
-        # 4. СБОРКА DEBUG ВЕРСИИ (без требования ключей)
         npx ns build android --no-hmr --force
 
     - name: Upload APK
