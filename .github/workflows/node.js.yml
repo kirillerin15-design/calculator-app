@@ -39,7 +39,7 @@ jobs:
       run: |
         cd calculator-app
         
-        # 1. ПЕРЕЗАПИСЫВАЕМ package.json целиком (убираем корень всех проблем)
+        # 1. Создаем правильный package.json
         cat <<EOF > package.json
         {
           "name": "calculator-app",
@@ -57,7 +57,7 @@ jobs:
         }
         EOF
 
-        # 2. СОЗДАЕМ правильный конфиг
+        # 2. Создаем конфиг
         cat <<EOF > nativescript.config.js
         module.exports = {
           id: 'org.nativescript.calculator',
@@ -70,15 +70,16 @@ jobs:
         };
         EOF
 
-        # 3. Создаем пустую папку ресурсов, если её нет (важно для билда)
         mkdir -p App_Resources/Android
 
-        # 4. Чистая установка и билд
+        # 3. Установка
         npm install
-        npx ns build android --release --no-hmr --force
+
+        # 4. СБОРКА DEBUG ВЕРСИИ (без требования ключей)
+        npx ns build android --no-hmr --force
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: calculator-apk
-        path: "**/platforms/android/app/build/outputs/apk/release/*.apk"
+        path: "**/platforms/android/app/build/outputs/apk/debug/*.apk"
