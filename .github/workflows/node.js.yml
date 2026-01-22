@@ -12,7 +12,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 1. Используем Node.js 20 (исправляет варнинги EBADENGINE)
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -38,12 +37,21 @@ jobs:
         cd calculator-app
         npm install
         
-        # Исправляем ошибку "Package name undefined"
-        # Прописываем ID приложения вручную перед сборкой
-        npx ns config set id org.nativescript.calculator
-        
-        # Добавляем платформу и собираем
-        npx ns platform add android
+        # ШАГ-СПАСИТЕЛЬ: Принудительно создаем файл конфигурации
+        # Это гарантирует, что NativeScript увидит ID приложения
+        cat <<EOF > nativescript.config.ts
+        import { NativeScriptConfig } from '@nativescript/core';
+        export default {
+          id: 'org.nativescript.calculator',
+          appResourcesPath: 'App_Resources',
+          android: {
+            v8Flags: '--expose_gc',
+            markingMode: 'none'
+          }
+        } as NativeScriptConfig;
+        EOF
+
+        # Теперь запускаем сборку
         npx ns build android --release --no-hmr
 
     - name: Upload APK
