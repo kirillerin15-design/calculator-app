@@ -26,7 +26,7 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Accept Android Licenses (Injection)
+    - name: Force Accept Android Licenses
       run: |
         mkdir -p ${ANDROID_HOME}/licenses
         echo "24333f8a63b6825ea9c5573f83c2eb754130b1b2" > ${ANDROID_HOME}/licenses/android-sdk-license
@@ -35,24 +35,33 @@ jobs:
     - name: Install NativeScript
       run: npm install -g nativescript
 
-    - name: Force Fix and Build
+    - name: Nuclear Fix and Build
       run: |
-        # 1. Проверяем, где мы находимся (диагностика в лог)
-        ls -R
+        cd calculator-app
         
-        # Переходим в папку проекта (если она есть) или остаемся в корне
-        [ -d "calculator-app" ] && cd calculator-app || echo "Working in root"
+        # 1. ПЕРЕЗАПИСЫВАЕМ package.json целиком (убираем корень всех проблем)
+        cat <<EOF > package.json
+        {
+          "name": "calculator-app",
+          "main": "app.js",
+          "displayName": "Calculator",
+          "version": "1.0.0",
+          "private": true,
+          "dependencies": {
+            "@nativescript/core": "~9.0.0",
+            "@nativescript/android": "~9.0.0"
+          },
+          "nativescript": {
+            "id": "org.nativescript.calculator"
+          }
+        }
+        EOF
 
-        # 2. ПРИНУДИТЕЛЬНО создаем package.json с нуля, если он кривой
-        # Мы берем текущий и вшиваем в него структуру NativeScript через мощный инструмент 'jq'
-        sudo apt-get install jq -y
-        jq '. + { "nativescript": { "id": "org.nativescript.calculator" } }' package.json > package.json.tmp && mv package.json.tmp package.json
-
-        # 3. Создаем JS-конфиг (JS надежнее TS в среде CI)
+        # 2. СОЗДАЕМ правильный конфиг
         cat <<EOF > nativescript.config.js
         module.exports = {
           id: 'org.nativescript.calculator',
-          appPath: 'src',
+          appPath: '.',
           appResourcesPath: 'App_Resources',
           android: {
             v8Flags: '--expose_gc',
@@ -61,13 +70,13 @@ jobs:
         };
         EOF
 
-        # 4. Установка зависимостей
-        npm install --save @nativescript/core @nativescript/android
-        npm install
+        # 3. Создаем пустую папку ресурсов, если её нет (важно для билда)
+        mkdir -p App_Resources/Android
 
-        # 5. СБОРКА с принудительной очисткой
-        npx ns build android --release --no-hmr --env.production --force
-      
+        # 4. Чистая установка и билд
+        npm install
+        npx ns build android --release --no-hmr --force
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
