@@ -26,53 +26,50 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    # ШАГ 1: РУЧНАЯ ПРОШИВКА ЛИЦЕНЗИЙ (Hardcore mode)
-    - name: Force Accept Android Licenses
+    - name: Accept Android Licenses (Injection)
       run: |
         mkdir -p ${ANDROID_HOME}/licenses
         echo "24333f8a63b6825ea9c5573f83c2eb754130b1b2" > ${ANDROID_HOME}/licenses/android-sdk-license
         echo "84831b9409646a918e30573bab4c9c91346d8abd" > ${ANDROID_HOME}/licenses/android-sdk-preview-license
-        echo "d975f751698a77b662f1254ddbeed3901e976f5a" > ${ANDROID_HOME}/licenses/intel-android-extra-license
-        echo "62148b69f9d690a7e6c55123d46777093910c663" > ${ANDROID_HOME}/licenses/android-googletv-license
-        echo "859f317696f97f7a3d24a843210b03f6190d0354" > ${ANDROID_HOME}/licenses/android-sdk-arm-dbt-license
 
-    - name: Install NativeScript CLI
+    - name: Install NativeScript
       run: npm install -g nativescript
 
-    - name: Prepare and Build APK
+    - name: Force Fix and Build
       run: |
-        cd calculator-app
+        # 1. Проверяем, где мы находимся (диагностика в лог)
+        ls -R
         
-        # ШАГ 2: ПРИНУДИТЕЛЬНАЯ КОРРЕКЦИЯ PACKAGE.JSON
-        # Мы гарантируем, что блок nativescript существует и содержит ID
-        node -e "
-        const fs = require('fs');
-        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-        pkg.nativescript = pkg.nativescript || {};
-        pkg.nativescript.id = 'org.nativescript.calculator';
-        if (!pkg.main) pkg.main = 'app.js';
-        fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-        "
+        # Переходим в папку проекта (если она есть) или остаемся в корне
+        [ -d "calculator-app" ] && cd calculator-app || echo "Working in root"
 
-        # ШАГ 3: СОЗДАНИЕ КОНФИГА
-        cat <<EOF > nativescript.config.ts
-        import { NativeScriptConfig } from '@nativescript/core';
-        export default {
+        # 2. ПРИНУДИТЕЛЬНО создаем package.json с нуля, если он кривой
+        # Мы берем текущий и вшиваем в него структуру NativeScript через мощный инструмент 'jq'
+        sudo apt-get install jq -y
+        jq '. + { "nativescript": { "id": "org.nativescript.calculator" } }' package.json > package.json.tmp && mv package.json.tmp package.json
+
+        # 3. Создаем JS-конфиг (JS надежнее TS в среде CI)
+        cat <<EOF > nativescript.config.js
+        module.exports = {
           id: 'org.nativescript.calculator',
+          appPath: 'src',
           appResourcesPath: 'App_Resources',
           android: {
             v8Flags: '--expose_gc',
             markingMode: 'none'
           }
-        } as NativeScriptConfig;
+        };
         EOF
 
-        # ШАГ 4: УСТАНОВКА И СБОРКА
+        # 4. Установка зависимостей
+        npm install --save @nativescript/core @nativescript/android
         npm install
-        npx ns build android --release --no-hmr
 
+        # 5. СБОРКА с принудительной очисткой
+        npx ns build android --release --no-hmr --env.production --force
+      
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: calculator-apk
-        path: calculator-app/platforms/android/app/build/outputs/apk/release/*.apk
+        path: "**/platforms/android/app/build/outputs/apk/release/*.apk"
