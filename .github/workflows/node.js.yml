@@ -9,46 +9,63 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # 1. Забираем репозиторий
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # 2. Node.js
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 18
 
+    # 3. Java (нужно для Android)
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: temurin
         java-version: 17
 
+    # 4. Android SDK
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
+    # 5. Принять лицензии
     - name: Accept Android SDK licenses
       run: yes | sdkmanager --licenses
 
+    # 6. Установить нужные компоненты SDK
     - name: Install Android SDK packages
       run: |
         sdkmanager "platform-tools" \
                    "platforms;android-33" \
                    "build-tools;33.0.2"
 
+    # 7. NativeScript CLI
     - name: Install NativeScript CLI
       run: npm install -g nativescript
 
+    # 8. Установка зависимостей ПРОЕКТА
     - name: Install project dependencies
-      run: npm install
+      run: |
+        cd calculator-app
+        npm install
 
+    # 9. Добавить Android-платформу
     - name: Add Android platform
-      run: ns platform add android
+      run: |
+        cd calculator-app
+        ns platform add android
 
+    # 10. Сборка APK
     - name: Build Android APK
-      run: ns build android --release --no-hmr
+      run: |
+        cd calculator-app
+        ns build android --release --no-hmr
 
+    # 11. Загрузка APK
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: calculator-apk
-        path: platforms/android/app/build/outputs/**/*.apk
+        path: calculator-app/platforms/android/app/build/outputs/**/*.apk
