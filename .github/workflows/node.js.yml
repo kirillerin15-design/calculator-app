@@ -32,13 +32,23 @@ jobs:
     - name: Install NativeScript CLI
       run: npm install -g nativescript
 
-    - name: Build APK
+    - name: Prepare and Build APK
       run: |
         cd calculator-app
-        npm install
         
-        # ШАГ-СПАСИТЕЛЬ: Принудительно создаем файл конфигурации
-        # Это гарантирует, что NativeScript увидит ID приложения
+        # 1. Принудительно обновляем package.json, чтобы NativeScript его узнал
+        # Добавляем блок "nativescript" с ID приложения
+        node -e "
+        const fs = require('fs');
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        pkg.nativescript = { id: 'org.nativescript.calculator' };
+        fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+        "
+
+        # 2. Устанавливаем зависимости
+        npm install
+
+        # 3. Создаем файл конфигурации (на всякий случай)
         cat <<EOF > nativescript.config.ts
         import { NativeScriptConfig } from '@nativescript/core';
         export default {
@@ -51,7 +61,7 @@ jobs:
         } as NativeScriptConfig;
         EOF
 
-        # Теперь запускаем сборку
+        # 4. Запускаем сборку
         npx ns build android --release --no-hmr
 
     - name: Upload APK
