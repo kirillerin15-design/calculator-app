@@ -15,7 +15,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 18 # Используем стабильную 18-ю для лучшей совместимости
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -33,16 +33,14 @@ jobs:
         echo "84831b9409646a918e30573bab4c9c91346d8abd" > ${ANDROID_HOME}/licenses/android-sdk-preview-license
 
     - name: Install NativeScript
-      run: npm install -g nativescript
+      run: npm install -g nativescript@8.5.0
 
-    - name: Total Project Reconstruction
+    - name: Pure JS Project Reconstruction
       run: |
-        # 1. Находим, где реально лежит проект
-        PROJECT_DIR=$(find . -name "package.json" -exec dirname {} \; | head -n 1)
-        echo "Project found in: $PROJECT_DIR"
+        PROJECT_DIR=$(find . -name "app.js" -exec dirname {} \; | head -n 1)
         cd "$PROJECT_DIR"
         
-        # 2. Создаем чистый package.json
+        # 1. ПАКЕТЫ: Только самое необходимое для JS проекта
         cat <<EOF > package.json
         {
           "name": "calculator-app",
@@ -50,8 +48,8 @@ jobs:
           "version": "1.0.0",
           "private": true,
           "dependencies": {
-            "@nativescript/core": "~8.8.0",
-            "@nativescript/android": "~8.8.0"
+            "@nativescript/core": "~8.5.0",
+            "@nativescript/android": "~8.5.0"
           },
           "devDependencies": {
             "@nativescript/webpack": "~5.0.0",
@@ -63,7 +61,7 @@ jobs:
         }
         EOF
 
-        # 3. Создаем Webpack Config (КРИТИЧЕСКИ ВАЖНО)
+        # 2. ВЕБПАК: Базовая конфигурация
         cat <<EOF > webpack.config.js
         const webpack = require("@nativescript/webpack");
         module.exports = (env) => {
@@ -72,7 +70,7 @@ jobs:
         };
         EOF
 
-        # 4. Создаем NativeScript Config
+        # 3. КОНФИГ NS
         cat <<EOF > nativescript.config.js
         module.exports = {
           id: 'org.nativescript.calculator',
@@ -87,9 +85,10 @@ jobs:
 
         mkdir -p App_Resources/Android
 
-        # 5. Установка и сборка
+        # 4. УСТАНОВКА И СБОРКА
+        # Мы явно говорим, что проект на JS (env.js)
         npm install
-        npx ns build android --no-hmr --force
+        npx ns build android --no-hmr --env.js --force
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
