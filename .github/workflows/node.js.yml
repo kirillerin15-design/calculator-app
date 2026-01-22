@@ -9,33 +9,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
+    # 1. Забираем код
+    - name: Checkout repository
       uses: actions/checkout@v4
 
+    # 2. Node.js (одна версия, без matrix)
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 18
 
-    - name: Install NativeScript CLI
-      run: npm install -g nativescript
-
-    - name: Install dependencies
-      run: npm install
-
+    # 3. Java (обязательно для Android)
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'
-        java-version: '17'
+        distribution: temurin
+        java-version: 17
 
+    # 4. Android SDK
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Build APK
+    # 5. Принятие лицензий (КРИТИЧНО)
+    - name: Accept Android SDK licenses
+      run: yes | sdkmanager --licenses
+
+    # 6. Установка нужных компонентов SDK
+    - name: Install Android SDK packages
+      run: |
+        sdkmanager "platform-tools" \
+                   "platforms;android-34" \
+                   "build-tools;34.0.0"
+
+    # 7. NativeScript CLI
+    - name: Install NativeScript CLI
+      run: npm install -g nativescript
+
+    # 8. Зависимости проекта
+    - name: Install project dependencies
+      run: npm install
+
+    # 9. Сборка APK
+    - name: Build Android APK
       run: ns build android --release --no-hmr
 
-    - name: Upload APK
+    # 10. Загрузка APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: calculator-apk
