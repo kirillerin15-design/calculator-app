@@ -1,0 +1,6 @@
+{
+  "main": "app.js",
+  "dependencies": {
+    "@nativescript/core": "^9.0.0"
+  }
+}
